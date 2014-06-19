@@ -25,23 +25,24 @@ var Promise = require('promise');
 
 module.exports = function (url, dest, opts) {
     return new Promise(function (fulfill, reject){
-        download(url, dest, opts, function (err, res){
-            if (err) reject(err);
-            else fulfill(res);
+        download(url, dest, opts, fulfill, reject, function (err, res){
+         //   if (err) reject(err);
+         //   else fulfill(res);
         });
      });
 };
 
-function download (url, dest, opts, cb) {
+function download (url, dest, opts, fullfill, reject, cb) {
  
     url = Array.isArray(url) ? url : [url];
     opts = opts || {};
 
     var request = require('request');
-    var stream = through();
+ //   var stream = through();
     var strip = +opts.strip || '0';
-
+    
     eachAsync(url, function (url, i, done) {
+
         var req;
         var target = path.join(dest, path.basename(url));
 
@@ -55,28 +56,25 @@ function download (url, dest, opts, cb) {
             target = path.join(dest, url.name);
             opts.url = url.url;
         }
-
-        req = request.get(opts);
-
-        req.on('data', function (data) {
-            stream.emit('data', data);
-        });
+        
+        req = request.get(url);
 
         req.on('error', function (err) {
-            stream.emit('error', err);
+            reject(err);
         });
+        
 
         req.on('response', function (res) {
             var mime = res.headers['content-type'];
             var status = res.statusCode;
             var end;
+            
 
             if (status < 200 || status >= 300) {
-                stream.emit('error', status);
+                reject(err);
                 return;
             }
 
-            stream.emit('response', res);
 
             if (opts.extract && decompress.canExtract(opts.url, mime)) {
                 var ext = decompress.canExtract(opts.url) ? opts.url : mime;
@@ -87,10 +85,10 @@ function download (url, dest, opts, cb) {
                     strip: strip
                 });
             } else {
+               console.log(dest);
                 if (!fs.existsSync(dest)) {
                     mkdir.sync(dest);
                 }
-
                 end = fs.createWriteStream(target);
             }
 
@@ -98,15 +96,18 @@ function download (url, dest, opts, cb) {
 
             end.on('close', function () {
                 if (!opts.extract && opts.mode) {
-                    fs.chmodSync(target, opts.mode);
+                    fs.chmod(target, opts.mode, function(){
+                     //fullfill("done");
+                      done();
+                    });
                 }
-
+               
                 done();
             });
         });
-    }, function () {
-        stream.emit('close');
-    });
-
-    return cb(null, stream);
+     }, function () {
+         fullfill("done");
+     });
+        
+    return cb(null, "");
 }
