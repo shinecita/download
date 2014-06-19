@@ -6,6 +6,7 @@ var fs = require('fs');
 var mkdir = require('mkdirp');
 var path = require('path');
 var through = require('through2');
+var Promise = require('promise');
 
 /**
  * Download a file to a given destination
@@ -23,6 +24,16 @@ var through = require('through2');
  */
 
 module.exports = function (url, dest, opts) {
+    return new Promise(function (fulfill, reject){
+        download(url, dest, opts, function (err, res){
+            if (err) reject(err);
+            else fulfill(res);
+        });
+     });
+};
+
+function download (url, dest, opts, cb) {
+ 
     url = Array.isArray(url) ? url : [url];
     opts = opts || {};
 
@@ -69,10 +80,10 @@ module.exports = function (url, dest, opts) {
 
             if (opts.extract && decompress.canExtract(opts.url, mime)) {
                 var ext = decompress.canExtract(opts.url) ? opts.url : mime;
-
+                
                 end = decompress({
                     ext: ext,
-                    path: dest,
+                    path: target,
                     strip: strip
                 });
             } else {
@@ -97,5 +108,5 @@ module.exports = function (url, dest, opts) {
         stream.emit('close');
     });
 
-    return stream;
-};
+    return cb(null, stream);
+}
